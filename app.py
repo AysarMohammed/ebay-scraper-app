@@ -1,3 +1,16 @@
+import os
+import streamlit as st
+
+# Lägg till detta innan streamlit startar
+port = int(os.environ.get('PORT', 8501))
+
+# Starta streamlit med rätt port
+if __name__ == '__main__':
+    import streamlit.web.cli as stcli
+    import sys
+    sys.argv = ["streamlit", "run", "app.py", "--server.port", str(port)]
+    sys.exit(stcli.main())
+
 import asyncio
 import sys
 import streamlit as st
