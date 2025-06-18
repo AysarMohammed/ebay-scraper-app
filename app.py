@@ -1,34 +1,55 @@
-import os
-import streamlit as st
-
-# Lägg till detta innan streamlit startar
-port = int(os.environ.get('PORT', 8501))
-
-# Starta streamlit med rätt port
-if __name__ == '__main__':
-    import streamlit.web.cli as stcli
-    import sys
-    sys.argv = ["streamlit", "run", "app.py", "--server.port", str(port)]
-    sys.exit(stcli.main())
-
 import asyncio
 import sys
 import streamlit as st
-from scraper import get_clean_ebay_data
 import io
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
+# Om du har egen scraper:
+from scraper import get_clean_ebay_data
+
+# Fix för Windows asyncio-eventloop
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 st.title("eBay Product Scraper")
+
+def simple_ebay_scraper(query):
+    url = f"https://www.ebay.com/sch/i.html?_nkw={query}"
+    response = requests.get(url)
+    if response.status_code != 200:
+        st.error("Failed to retrieve data from eBay.")
+        return pd.DataFrame()
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    items = soup.select(".s-item")
+    
+    data = []
+    for item in items:
+        title = item.select_one(".s-item__title")
+        price = item.select_one(".s-item__price")
+        if title and price:
+            data.append({"title": title.text, "price": price.text})
+    
+    return pd.DataFrame(data)
 
 query = st.text_input("What do you want to search for?", value="iphone")
 max_pages = st.number_input("Number of pages to scrape", min_value=1, max_value=5, value=1)
 
 if st.button("Fetch Data"):
     with st.spinner("Fetching data from eBay..."):
-        df = get_clean_ebay_data(query, max_pages)
+        # Försök använda din egna scraper först
+        try:
+            df = get_clean_ebay_data(query, max_pages)
+        except Exception as e:
+            st.warning(f"Din scraper gav fel: {e}\nFörsöker med enklare scraper istället.")
+            df = pd.DataFrame()
 
+        # Om egen scraper misslyckas eller är tom, använd fallback
+        if df.empty:
+            df = simple_ebay_scraper(query)
+    
     if df.empty:
         st.warning("No results found.")
     else:
