@@ -1,44 +1,44 @@
-from playwright.sync_api import sync_playwright
+import requests
+from bs4 import BeautifulSoup
 import pandas as pd
 import time
 
 def scrape_ebay_products(query, max_pages=1):
     results = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
 
-        for page_num in range(1, max_pages + 1):
-            url = f"https://www.ebay.com/sch/i.html?_nkw={query}&_pgn={page_num}"
-            print(f"Visiting: {url}")
-            page.goto(url)
-            page.wait_for_timeout(5000)
+    for page_num in range(1, max_pages + 1):
+        url = f"https://www.ebay.com/sch/i.html?_nkw={query}&_pgn={page_num}"
+        print(f"Visiting: {url}")
 
-            items = page.locator("li.s-item")
-            count = items.count()
-            print(f"Page {page_num}: Found {count} items")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/114.0.0.0 Safari/537.36"
+        }
 
-            for i in range(count):
-                try:
-                    title = items.nth(i).locator("div.s-item__title > span[role='heading']").inner_text(timeout=1000)
-                except:
-                    title = "N/A"
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-                try:
-                    price = items.nth(i).locator(".s-item__price").inner_text(timeout=1000)
-                except:
-                    price = "N/A"
+        items = soup.select("li.s-item")
 
-                try:
-                    link = items.nth(i).locator("a.s-item__link").get_attribute("href")
-                except:
-                    link = "N/A"
+        print(f"Page {page_num}: Found {len(items)} items")
 
-                results.append({"Title": title, "Price": price, "Link": link})
+        for item in items:
+            title_tag = item.select_one(".s-item__title")
+            price_tag = item.select_one(".s-item__price")
+            link_tag = item.select_one("a.s-item__link")
 
-            time.sleep(2)  # Reduce load on eBay
+            title = title_tag.get_text(strip=True) if title_tag else "N/A"
+            price = price_tag.get_text(strip=True) if price_tag else "N/A"
+            link = link_tag["href"] if link_tag else "N/A"
 
-        browser.close()
+            results.append({
+                "Title": title,
+                "Price": price,
+                "Link": link
+            })
+
+        time.sleep(1)  # Respektfull crawl-hastighet
 
     print(f"Total items scraped: {len(results)}")
     return results
