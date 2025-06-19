@@ -6,16 +6,16 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-# Om du har egen scraper:
-from scraper import get_clean_ebay_data
+# Om du har en egen datametod:
+from scraper import get_clean_ebay_data  # Byt namn på denna modul vid behov!
 
 # Fix för Windows asyncio-eventloop
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-st.title("🛒 eBay Product Scraper")
+st.title("🛒 eBay Product Research Tool")
 
-def simple_ebay_scraper(query, max_pages=1):
+def simple_ebay_collector(query, max_pages=1):
     data = []
     bad_titles = [
         "Shop on eBay", 
@@ -47,20 +47,20 @@ def simple_ebay_scraper(query, max_pages=1):
 
 # 🔎 Inputfält
 query = st.text_input("Enter product name (e.g. 'iPhone', 'TV', 'Laptop')", value="iphone")
-max_pages = st.number_input("Number of pages to scrape", min_value=1, max_value=5, value=1)
+max_pages = st.number_input("Number of pages to collect", min_value=1, max_value=5, value=1)
 
 if st.button("Fetch Data"):
-    with st.spinner("Fetching data from eBay..."):
-        # Försök använda din egen scraper först
+    with st.spinner("Collecting product data from eBay..."):
+        # Försök använda din huvudsakliga metod
         try:
             df = get_clean_ebay_data(query, max_pages)
         except Exception as e:
-            st.warning(f"Din scraper gav fel: {e}\nFörsöker med enklare scraper istället.")
+            st.warning(f"Primary method failed: {e}\nUsing fallback instead.")
             df = pd.DataFrame()
 
         # Fallback
         if df.empty:
-            df = simple_ebay_scraper(query, max_pages)
+            df = simple_ebay_collector(query, max_pages)
 
     if df.empty:
         st.warning("No results found.")
@@ -90,4 +90,5 @@ if st.button("Fetch Data"):
             )
 
 # 📌 Versionstext
-st.caption("🧪 This is a demo version. Full version includes multi-page scraping and advanced export options.")
+st.caption("🧪 This is a demo version. Full version includes multi-page collection and export options.")
+
