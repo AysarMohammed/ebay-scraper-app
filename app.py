@@ -13,7 +13,7 @@ from scraper import get_clean_ebay_data
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-st.title("eBay Product Scraper")
+st.title("🛒 eBay Product Scraper")
 
 def simple_ebay_scraper(query, max_pages=1):
     data = []
@@ -45,45 +45,49 @@ def simple_ebay_scraper(query, max_pages=1):
 
     return pd.DataFrame(data)
 
-query = st.text_input("What do you want to search for?", value="iphone")
+# 🔎 Inputfält
+query = st.text_input("Enter product name (e.g. 'iPhone', 'TV', 'Laptop')", value="iphone")
 max_pages = st.number_input("Number of pages to scrape", min_value=1, max_value=5, value=1)
 
 if st.button("Fetch Data"):
     with st.spinner("Fetching data from eBay..."):
-        # Försök använda din egna scraper först
+        # Försök använda din egen scraper först
         try:
             df = get_clean_ebay_data(query, max_pages)
         except Exception as e:
             st.warning(f"Din scraper gav fel: {e}\nFörsöker med enklare scraper istället.")
             df = pd.DataFrame()
 
-        # Om egen scraper misslyckas eller är tom, använd fallback
+        # Fallback
         if df.empty:
             df = simple_ebay_scraper(query, max_pages)
 
     if df.empty:
         st.warning("No results found.")
     else:
-        st.success(f"Found {len(df)} items.")
+        st.success(f"✅ {len(df)} products found.")
         st.dataframe(df)
 
-        # Excel download
-        towrite = io.BytesIO()
-        df.to_excel(towrite, index=False, engine='openpyxl')
-        towrite.seek(0)
+        # 💾 Nedladdningsknappar
+        col1, col2 = st.columns(2)
+        with col1:
+            towrite = io.BytesIO()
+            df.to_excel(towrite, index=False, engine='openpyxl')
+            towrite.seek(0)
+            st.download_button(
+                label="📥 Download Excel",
+                data=towrite,
+                file_name=f"ebay_{query}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
-        st.download_button(
-            label="Download as Excel",
-            data=towrite,
-            file_name=f"ebay_{query}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        with col2:
+            st.download_button(
+                label="📥 Download CSV",
+                data=df.to_csv(index=False).encode("utf-8"),
+                file_name=f"ebay_{query}.csv",
+                mime="text/csv"
+            )
 
-        # CSV download
-        st.download_button(
-            label="Download as CSV",
-            data=df.to_csv(index=False).encode("utf-8"),
-            file_name=f"ebay_{query}.csv",
-            mime="text/csv"
-        )
-
+# 📌 Versionstext
+st.caption("🧪 This is a demo version. Full version includes multi-page scraping and advanced export options.")
