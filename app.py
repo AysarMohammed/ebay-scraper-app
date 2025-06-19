@@ -15,23 +15,34 @@ if sys.platform.startswith('win'):
 
 st.title("eBay Product Scraper")
 
-def simple_ebay_scraper(query):
-    url = f"https://www.ebay.com/sch/i.html?_nkw={query}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        st.error("Failed to retrieve data from eBay.")
-        return pd.DataFrame()
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    items = soup.select(".s-item")
-    
+def simple_ebay_scraper(query, max_pages=1):
     data = []
-    for item in items:
-        title = item.select_one(".s-item__title")
-        price = item.select_one(".s-item__price")
-        if title and price:
-            data.append({"title": title.text, "price": price.text})
-    
+    bad_titles = [
+        "Shop on eBay", 
+        "Shop by Brand", 
+        "Tap item to see current price", 
+        "See price", 
+        "Explore More", 
+        "Sponsored"
+    ]
+    for page in range(1, max_pages + 1):
+        url = f"https://www.ebay.com/sch/i.html?_nkw={query}&_pgn={page}"
+        response = requests.get(url)
+        if response.status_code != 200:
+            st.error(f"Failed to retrieve data from eBay on page {page}.")
+            break
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        items = soup.select(".s-item")
+
+        for item in items:
+            title = item.select_one(".s-item__title")
+            price = item.select_one(".s-item__price")
+            if title and price:
+                cleaned_title = title.text.strip()
+                if cleaned_title not in bad_titles:
+                    data.append({"title": cleaned_title, "price": price.text.strip()})
+
     return pd.DataFrame(data)
 
 query = st.text_input("What do you want to search for?", value="iphone")
@@ -48,8 +59,8 @@ if st.button("Fetch Data"):
 
         # Om egen scraper misslyckas eller är tom, använd fallback
         if df.empty:
-            df = simple_ebay_scraper(query)
-    
+            df = simple_ebay_scraper(query, max_pages)
+
     if df.empty:
         st.warning("No results found.")
     else:
@@ -75,3 +86,4 @@ if st.button("Fetch Data"):
             file_name=f"ebay_{query}.csv",
             mime="text/csv"
         )
+
